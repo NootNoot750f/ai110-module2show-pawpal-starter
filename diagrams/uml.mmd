@@ -1,5 +1,5 @@
 classDiagram
-    class User {
+    class Owner {
         -id: String
         -name: String
         -pets: List~Pet~
@@ -58,7 +58,7 @@ classDiagram
         -durationMinutes: int
     }
 
-    User "1" --> "*" Pet : has
+    Owner "1" --> "*" Pet : has
     Pet "1" --> "*" Plan : has
     Plan "1" --> "*" Task : contains
     Pet "1" ..> "1" TaskSheet : derives

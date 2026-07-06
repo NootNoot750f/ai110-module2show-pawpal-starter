@@ -1,4 +1,4 @@
-from datetime import date, time
+from datetime import date, time, timedelta
 
 import streamlit as st
 from pawpal_system import (
@@ -8,8 +8,21 @@ from pawpal_system import (
     Scheduler,
     Task,
     filterTasks,
-    sortByTime,
 )
+
+def overlap_minutes(earlier: Task, later: Task) -> int:
+    """How many minutes two timed tasks collide.
+
+    Mirrors the overlap window Scheduler.detectConflicts uses to flag the pair,
+    so the number shown to the owner matches the logic that raised the warning.
+    """
+    earlier_start = earlier.dueDateTime()
+    later_start = later.dueDateTime()
+    if earlier_start is None or later_start is None:  # untimed can't overlap
+        return 0
+    earlier_end = earlier_start + timedelta(minutes=earlier.durationMinutes)
+    return max(0, int((earlier_end - later_start).total_seconds() // 60))
+
 
 st.set_page_config(page_title="PawPal+", page_icon="🐾", layout="centered")
 
@@ -170,6 +183,10 @@ with fcol1:
 with fcol2:
     priority_filter = st.selectbox("Filter priority", ["all", "low", "medium", "high"])
 
+# One Scheduler drives both the agenda ordering here and the conflict
+# checks below, so the UI and the domain logic never drift apart.
+scheduler = Scheduler()
+
 if not owner.getPets():
     st.info("No pets yet. Add one above.")
 for pet in owner.getPets():
@@ -179,8 +196,10 @@ for pet in owner.getPets():
         status=None if status_filter == "all" else status_filter,
         priority=None if priority_filter == "all" else priority_filter,
     )
-    tasks = sortByTime(tasks)  # chronological agenda order
+    tasks = scheduler.sortByTime(tasks)  # chronological agenda order
     if tasks:
+        pending = sum(1 for t in tasks if not t.completed)
+        st.caption(f"{len(tasks)} task(s) shown · {pending} pending")
         st.table(
             [
                 {
@@ -189,7 +208,7 @@ for pet in owner.getPets():
                     "priority": t.priority,
                     "due": str(t.dueDate),
                     "repeats": t.recurrence or "once",
-                    "status": "done" if t.completed else "pending",
+                    "status": "✅ done" if t.completed else "⏳ pending",
                 }
                 for t in tasks
             ]
@@ -210,15 +229,38 @@ if st.button("Generate schedule"):
     if not all_tasks:
         st.warning("No tasks to schedule yet. Add some above.")
     else:
-        scheduler = Scheduler()
-
-        # Warn about tasks whose intended times collide before ordering them.
+        # Check for time collisions BEFORE showing the plan, so the owner sees
+        # what needs fixing up front. detectConflicts returns (earlier, later)
+        # pairs of timed tasks whose windows genuinely overlap.
         conflicts = scheduler.detectConflicts(all_tasks)
-        for earlier, later in conflicts:
-            st.warning(
-                f"⚠ '{earlier.title}' ({earlier.dueTime.strftime('%H:%M')}) "
-                f"overlaps '{later.title}' ({later.dueTime.strftime('%H:%M')})"
+
+        if conflicts:
+            st.error(
+                f"⚠️ {len(conflicts)} scheduling conflict"
+                f"{'s' if len(conflicts) > 1 else ''} found — "
+                "two care tasks want the same time slot. "
+                "Move one to a different time to give your pet your full attention."
             )
+            # A scannable table: each row names both tasks, their windows, and
+            # exactly how many minutes they collide, so the fix is obvious.
+            st.table(
+                [
+                    {
+                        "conflict": f"{earlier.title} ↔ {later.title}",
+                        "when": (
+                            f"{earlier.dueTime.strftime('%H:%M')}"
+                            f"–{later.dueTime.strftime('%H:%M')}"
+                        ),
+                        "overlap": (
+                            f"{overlap_minutes(earlier, later)} min"
+                        ),
+                        "suggestion": f"reschedule '{later.title}'",
+                    }
+                    for earlier, later in conflicts
+                ]
+            )
+        else:
+            st.success("✅ No time conflicts — your pet's day looks well spaced out.")
 
         events = scheduler.buildSchedule(all_tasks)
         st.write(f"Proposed schedule ({len(events)} events):")

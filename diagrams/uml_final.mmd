@@ -1,0 +1,99 @@
+classDiagram
+    class Owner {
+        -id: String
+        -name: String
+        -pets: List~Pet~
+        +addPet(pet: Pet) void
+        +getPets() List~Pet~
+        +getAllTasks() List~Task~
+        +getTasksForPet(petId: String) List~Task~
+        +filterTasks(status: String, petName: String) List~Task~
+    }
+
+    class Pet {
+        -id: String
+        -name: String
+        -type: String
+        -plans: List~Plan~
+        +addPlan(plan: Plan) void
+        +getPlans() List~Plan~
+        +getTaskSheet() TaskSheet
+    }
+
+    class Plan {
+        -id: String
+        -name: String
+        -description: String
+        -createdAt: Date
+        -tasks: List~Task~
+        +addTask(task: Task) void
+        +completeTask(task: Task) Optional~Task~
+        +skipTask(task: Task) Optional~Task~
+        +getTasks() List~Task~
+    }
+
+    class Task {
+        -id: String
+        -title: String
+        -description: String
+        -priority: String
+        -dueDate: Date
+        -completed: boolean
+        -dueTime: Optional~Time~
+        -durationMinutes: int
+        -recurrence: Optional~String~
+        -interval: int
+        -completedDates: Set~Date~
+        +markComplete() void
+        +markDateComplete(on: Date) void
+        +dueDateTime() Optional~DateTime~
+        +occurrences(start: Date, end: Date) List~Date~
+        +nextOccurrence() Optional~Task~
+        +updateTask(updates: dict) void
+    }
+
+    class Event {
+        -id: String
+        -task: Task
+        -scheduledTime: DateTime
+        -durationMinutes: int
+    }
+
+    class TaskSheet {
+        -petId: String
+        -tasks: List~Task~
+        +getTaskList() List~Task~
+        +filterByPriority(priority: String) List~Task~
+    }
+
+    class Scheduler {
+        -slotMinutes: int
+        -DAY_START: Time
+        -PRIORITY_RANK: dict
+        +prioritize(tasks: List~Task~) List~Task~
+        +sortByTime(tasks: List~Task~) List~Task~
+        +buildSchedule(tasks: List~Task~) List~Event~
+        +detectConflicts(tasks: List~Task~) List~Tuple~
+        +conflictWarnings(tasks: List~Task~) List~String~
+        -_firstOverlap(startAt: DateTime, duration: TimeDelta, events: List~Event~) Optional~Event~
+    }
+
+    class TaskUtils {
+        <<module functions>>
+        +sortByTime(tasks: List~Task~) List~Task~
+        +filterTasks(tasks: List~Task~, status: String, priority: String) List~Task~
+        +expandRecurring(tasks: List~Task~, start: Date, end: Date) List~Task~
+    }
+
+    Owner "1" --> "*" Pet : has
+    Pet "1" --> "*" Plan : has
+    Plan "1" --> "*" Task : contains (source of truth)
+    Pet "1" ..> "1" TaskSheet : derives on demand
+    TaskSheet "1" --> "*" Task : views
+    Scheduler ..> Task : reads
+    Scheduler "1" --> "*" Event : produces
+    Scheduler ..> Event : checks overlap
+    Scheduler ..> TaskUtils : delegates sortByTime
+    Event "1" --> "1" Task : wraps
+    Task ..> Task : nextOccurrence spawns
+    TaskUtils ..> Task : filters / sorts / expands
