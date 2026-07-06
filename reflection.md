@@ -11,7 +11,10 @@
 **a. Initial design**
 
 - Briefly describe your initial UML design.
+  My UML design Has 5 classes, User, which has pet, Pet which has Plan and Contains TaskSheet, Plan which contains Task, and TaskSheet which manages Task
+
 - What classes did you include, and what responsibilities did you assign to each?
+  User has an id, name and pet list, has the ability to addPet to themself, as well as list the pets that they have. Pet has an id string, name string, a type string, plan list, and taskSheet. They're able to get a plan and get a taskSheet. The plan also has a n id, string, but also a description, the date it was created and a task list. A taskSheet has the petid as a string, and a task list, and you can add a task from the taskList, return the taskList, and filter by priority. And finally task has an id, title, description, priority, due date, and a completed boolean. You can mark a task complete or update the task info.
 
 **b. Design changes**
 

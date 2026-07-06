@@ -2,10 +2,17 @@
 
 Generated from diagrams/uml.mmd. Method bodies are left as stubs
 to be implemented.
+
+Design notes:
+- Plan is the single source of truth for Tasks. A TaskSheet is a *derived
+  view*: Pet.getTaskSheet() rebuilds one from the pet's plans on demand, so
+  there is never a second stored copy of a task to fall out of sync.
+- Scheduler reads a list of Tasks and produces an ordered list of Events
+  (a Task placed at a specific time).
 """
 
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime
 from typing import List
 
 
@@ -26,17 +33,41 @@ class Task:
 
 
 @dataclass
+class Event:
+    """A Task placed at a specific time on the schedule."""
+
+    id: str
+    task: Task
+    scheduledTime: datetime
+    durationMinutes: int = 0
+
+
+@dataclass
 class TaskSheet:
+    """A read-only, aggregated view of a pet's tasks.
+
+    Built by Pet.getTaskSheet() from the pet's plans. Do not add tasks
+    here directly -- add them to a Plan (the source of truth) instead.
+    """
+
     petId: str
     tasks: List[Task] = field(default_factory=list)
-
-    def addTaskFromList(self, task: Task) -> None:
-        pass
 
     def getTaskList(self) -> List[Task]:
         pass
 
     def filterByPriority(self, priority: str) -> List[Task]:
+        pass
+
+
+@dataclass
+class Scheduler:
+    """Turns a flat list of tasks into an ordered schedule of events."""
+
+    def buildSchedule(self, tasks: List[Task]) -> List[Event]:
+        pass
+
+    def prioritize(self, tasks: List[Task]) -> List[Task]:
         pass
 
 
@@ -54,9 +85,6 @@ class Plan:
     def getTasks(self) -> List[Task]:
         pass
 
-    def getEventList(self) -> list:
-        pass
-
 
 @dataclass
 class Pet:
@@ -64,15 +92,15 @@ class Pet:
     name: str
     type: str
     plans: List[Plan] = field(default_factory=list)
-    taskSheet: "TaskSheet | None" = None
 
     def addPlan(self, plan: Plan) -> None:
         pass
 
-    def getPlan(self) -> List[Plan]:
+    def getPlans(self) -> List[Plan]:
         pass
 
     def getTaskSheet(self) -> TaskSheet:
+        """Build a fresh TaskSheet by aggregating tasks across all plans."""
         pass
 
 

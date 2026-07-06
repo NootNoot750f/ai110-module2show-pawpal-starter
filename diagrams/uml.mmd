@@ -12,9 +12,8 @@ classDiagram
         -name: String
         -type: String
         -plans: List~Plan~
-        -taskSheet: TaskSheet
         +addPlan(plan: Plan) void
-        +getPlan() List~Plan~
+        +getPlans() List~Plan~
         +getTaskSheet() TaskSheet
     }
 
@@ -26,7 +25,6 @@ classDiagram
         -tasks: List~Task~
         +addTask(task: Task) void
         +getTasks() List~Task~
-        +getEventList() List~Event~
     }
 
     class Task {
@@ -43,13 +41,27 @@ classDiagram
     class TaskSheet {
         -petId: String
         -tasks: List~Task~
-        +addTaskFromList(task: Task) void
         +getTaskList() List~Task~
         +filterByPriority(priority: String) List~Task~
     }
 
+    class Scheduler {
+        +buildSchedule(tasks: List~Task~) List~Event~
+        +prioritize(tasks: List~Task~) List~Task~
+    }
+
+    class Event {
+        -id: String
+        -task: Task
+        -scheduledTime: Date
+        -durationMinutes: int
+    }
+
     User "1" --> "*" Pet : has
-    Pet "1" --> "1" TaskSheet : contains
     Pet "1" --> "*" Plan : has
     Plan "1" --> "*" Task : contains
-    TaskSheet "1" --> "*" Task : manages
+    Pet "1" ..> "1" TaskSheet : derives
+    TaskSheet "1" --> "*" Task : views
+    Scheduler ..> Task : reads
+    Scheduler "1" --> "*" Event : produces
+    Event "1" --> "1" Task : wraps
