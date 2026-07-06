@@ -226,7 +226,15 @@ class Scheduler:
                 )
             )
 
-        events.sort(key=lambda e: e.scheduledTime)
+        # Sort chronologically; when two events land at the exact same time
+        # (a genuine clash), show the more urgent one first so high-priority
+        # tasks aren't buried under lower ones. Matches sortByTime's tie-break.
+        events.sort(
+            key=lambda e: (
+                e.scheduledTime,
+                self.PRIORITY_RANK.get(e.task.priority.lower(), 99),
+            )
+        )
         return events
 
     @staticmethod
