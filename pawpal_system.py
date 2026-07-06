@@ -10,10 +10,9 @@ Design notes:
 - Scheduler reads a list of Tasks and produces an ordered list of Events
   (a Task placed at a specific time).
 """
-
 from dataclasses import dataclass, field
-from datetime import date, datetime
-from typing import List
+from datetime import date, datetime, timedelta
+from typing import List, Optional
 
 
 @dataclass
@@ -26,10 +25,15 @@ class Task:
     completed: bool = False
 
     def markComplete(self) -> None:
-        pass
+        """Mark this task as completed."""
+        self.completed = True
 
-    def updateTask(self, updates) -> None:
-        pass
+    def updateTask(self, updates: dict) -> None:
+        """Apply a dict of field -> value changes (id is immutable)."""
+        editable = {"title", "description", "priority", "dueDate", "completed"}
+        for key, value in updates.items():
+            if key in editable:
+                setattr(self, key, value)
 
 
 @dataclass
@@ -54,21 +58,57 @@ class TaskSheet:
     tasks: List[Task] = field(default_factory=list)
 
     def getTaskList(self) -> List[Task]:
-        pass
+        """Return all tasks in this sheet."""
+        return self.tasks
 
     def filterByPriority(self, priority: str) -> List[Task]:
-        pass
+        """Return tasks matching the given priority (case-insensitive)."""
+        return [t for t in self.tasks if t.priority.lower() == priority.lower()]
 
 
 @dataclass
 class Scheduler:
-    """Turns a flat list of tasks into an ordered schedule of events."""
+    """Turns a flat list of tasks into an ordered schedule of events.
 
-    def buildSchedule(self, tasks: List[Task]) -> List[Event]:
-        pass
+    Tradeoff: tasks are laid into consecutive fixed-length slots by urgency
+    (priority, then due date) rather than being placed at each task's exact
+    due time. This keeps the schedule simple and gap-free at the cost of not
+    honoring precise due times.
+    """
+
+    slotMinutes: int = 30
+
+    # Lower rank = more urgent. Unknown priorities sort last.
+    PRIORITY_RANK = {"high": 0, "medium": 1, "low": 2}
 
     def prioritize(self, tasks: List[Task]) -> List[Task]:
-        pass
+        """Sort tasks by urgency (priority, then due date)."""
+        return sorted(
+            tasks,
+            key=lambda t: (self.PRIORITY_RANK.get(t.priority.lower(), 99), t.dueDate),
+        )
+
+    def buildSchedule(self, tasks: List[Task], start: Optional[datetime] = None) -> List[Event]:
+        """Place pending tasks into consecutive time slots as ordered events."""
+        if start is None:
+            start = datetime.now()
+
+        pending = [task for task in tasks if not task.completed]
+        ordered = self.prioritize(pending)
+
+        events: List[Event] = []
+        slot = start
+        for task in ordered:
+            events.append(
+                Event(
+                    id=f"evt-{task.id}",
+                    task=task,
+                    scheduledTime=slot,
+                    durationMinutes=self.slotMinutes,
+                )
+            )
+            slot = slot + timedelta(minutes=self.slotMinutes)
+        return events
 
 
 @dataclass
@@ -80,10 +120,12 @@ class Plan:
     tasks: List[Task] = field(default_factory=list)
 
     def addTask(self, task: Task) -> None:
-        pass
+        """Add a task to this plan."""
+        self.tasks.append(task)
 
     def getTasks(self) -> List[Task]:
-        pass
+        """Return all tasks in this plan."""
+        return self.tasks
 
 
 @dataclass
@@ -94,24 +136,41 @@ class Pet:
     plans: List[Plan] = field(default_factory=list)
 
     def addPlan(self, plan: Plan) -> None:
-        pass
+        """Add a plan to this pet."""
+        self.plans.append(plan)
 
     def getPlans(self) -> List[Plan]:
-        pass
+        """Return all plans for this pet."""
+        return self.plans
 
     def getTaskSheet(self) -> TaskSheet:
         """Build a fresh TaskSheet by aggregating tasks across all plans."""
-        pass
+        tasks = [task for plan in self.plans for task in plan.getTasks()]
+        return TaskSheet(petId=self.id, tasks=tasks)
 
 
 @dataclass
-class User:
+class Owner:
     id: str
     name: str
     pets: List[Pet] = field(default_factory=list)
 
     def addPet(self, pet: Pet) -> None:
-        pass
+        """Add a pet to this owner."""
+        self.pets.append(pet)
 
     def getPets(self) -> List[Pet]:
-        pass
+        """Return all pets owned by this owner."""
+        return self.pets
+
+    def getAllTasks(self) -> List[Task]:
+        """Gather every task across all of the user's pets.
+
+        Delegates to each pet's derived TaskSheet so all task reads flow
+        through the same path (Plan is the source of truth).
+        """
+        return [
+            task
+            for pet in self.pets
+            for task in pet.getTaskSheet().getTaskList()
+        ]
