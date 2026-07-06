@@ -1,15 +1,55 @@
 classDiagram
-    %% Replace the placeholders below with your actual classes, attributes, methods, and relationships.
-    %% Keep this file updated so it matches your final implementation.
-
-    class ClassName {
-        +type attribute
-        +method() returnType
+    class User {
+        -id: String
+        -name: String
+        -pets: List~Pet~
+        +addPet(pet: Pet) void
+        +getPets() List~Pet~
     }
 
-    class AnotherClass {
-        +type attribute
-        +method() returnType
+    class Pet {
+        -id: String
+        -name: String
+        -type: String
+        -plans: List~Plan~
+        -taskSheet: TaskSheet
+        +addPlan(plan: Plan) void
+        +getPlan() List~Plan~
+        +getTaskSheet() TaskSheet
     }
 
-    ClassName --> AnotherClass : relationship
+    class Plan {
+        -id: String
+        -name: String
+        -description: String
+        -createdAt: Date
+        -tasks: List~Task~
+        +addTask(task: Task) void
+        +getTasks() List~Task~
+        +getEventList() List~Event~
+    }
+
+    class Task {
+        -id: String
+        -title: String
+        -description: String
+        -priority: String
+        -dueDate: Date
+        -completed: boolean
+        +markComplete() void
+        +updateTask(updates) void
+    }
+
+    class TaskSheet {
+        -petId: String
+        -tasks: List~Task~
+        +addTaskFromList(task: Task) void
+        +getTaskList() List~Task~
+        +filterByPriority(priority: String) List~Task~
+    }
+
+    User "1" --> "*" Pet : has
+    Pet "1" --> "1" TaskSheet : contains
+    Pet "1" --> "*" Plan : has
+    Plan "1" --> "*" Task : contains
+    TaskSheet "1" --> "*" Task : manages

@@ -2,6 +2,12 @@
 
 ## 1. System Design
 
+3 Actions the user should be able to do:
+
+1. Be able to add their pet
+2. Have a catered plan about their pet
+3. See what tasks need to be done for the pet
+
 **a. Initial design**
 
 - Briefly describe your initial UML design.
